@@ -1,0 +1,97 @@
+package com.smartplacement.controller;
+
+import com.smartplacement.dao.ApplicationDAO;
+import com.smartplacement.dao.FeedbackDAO;
+import com.smartplacement.dao.StudentDAO;
+import com.smartplacement.model.Feedback;
+import com.smartplacement.model.Student;
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+
+@WebServlet("/studentAction")
+public class StudentController extends HttpServlet {
+    
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String action = request.getParameter("action");
+        HttpSession session = request.getSession();
+        Student student = (Student) session.getAttribute("userObj");
+        
+        if (student == null || !"student".equals(session.getAttribute("role"))) {
+            response.sendRedirect(request.getContextPath() + "/index.jsp");
+            return;
+        }
+        
+        try {
+            if ("updateProfile".equals(action)) {
+                student.setName(request.getParameter("name"));
+                student.setBranch(request.getParameter("branch"));
+                student.setCgpa(Double.parseDouble(request.getParameter("cgpa")));
+                student.setContactNumber(request.getParameter("contact"));
+                
+                StudentDAO dao = new StudentDAO();
+                if (dao.updateProfile(student)) {
+                    session.setAttribute("userObj", student);
+                    session.setAttribute("msg", "Profile Updated Successfully");
+                } else {
+                    session.setAttribute("error", "Failed to update profile");
+                }
+                response.sendRedirect(request.getContextPath() + "/student/profile.jsp");
+                
+            } else if ("submitFeedback".equals(action)) {
+                Feedback f = new Feedback();
+                f.setStudentId(student.getId());
+                f.setSubject(request.getParameter("subject"));
+                f.setMessage(request.getParameter("message"));
+                
+                FeedbackDAO dao = new FeedbackDAO();
+                if (dao.submitFeedback(f)) {
+                    session.setAttribute("msg", "Feedback Submitted Successfully");
+                } else {
+                    session.setAttribute("error", "Failed to submit feedback");
+                }
+                response.sendRedirect(request.getContextPath() + "/student/feedback.jsp");
+                
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            session.setAttribute("error", "An error occurred");
+            response.sendRedirect(request.getContextPath() + "/student/dashboard.jsp");
+        }
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String action = request.getParameter("action");
+        HttpSession session = request.getSession();
+        Student student = (Student) session.getAttribute("userObj");
+
+        if (student == null || !"student".equals(session.getAttribute("role"))) {
+            response.sendRedirect(request.getContextPath() + "/index.jsp");
+            return;
+        }
+
+        try {
+            if ("applyJob".equals(action)) {
+                int driveId = Integer.parseInt(request.getParameter("driveId"));
+                ApplicationDAO dao = new ApplicationDAO();
+                if (dao.applyForJob(student.getId(), driveId)) {
+                    session.setAttribute("msg", "Applied Successfully");
+                } else {
+                    session.setAttribute("error", "Failed to Apply or Already Applied");
+                }
+                response.sendRedirect(request.getContextPath() + "/student/jobs.jsp");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            session.setAttribute("error", "An error occurred");
+            response.sendRedirect(request.getContextPath() + "/student/jobs.jsp");
+        }
+    }
+}

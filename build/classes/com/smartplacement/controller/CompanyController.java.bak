@@ -1,0 +1,98 @@
+package com.smartplacement.controller;
+
+import com.smartplacement.dao.ApplicationDAO;
+import com.smartplacement.dao.JobDriveDAO;
+import com.smartplacement.model.Company;
+import com.smartplacement.model.JobDrive;
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.sql.Date;
+
+@WebServlet("/companyAction")
+public class CompanyController extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String action = request.getParameter("action");
+        HttpSession session = request.getSession();
+        Company company = (Company) session.getAttribute("userObj");
+
+        if (company == null || !"company".equals(session.getAttribute("role"))) {
+            response.sendRedirect(request.getContextPath() + "/index.jsp");
+            return;
+        }
+
+        try {
+            if ("postJob".equals(action)) {
+                JobDrive drive = new JobDrive();
+                drive.setCompanyId(company.getId());
+                drive.setJobRole(request.getParameter("jobRole"));
+                drive.setDescription(request.getParameter("description"));
+                drive.setEligibilityCgpa(Double.parseDouble(request.getParameter("eligibilityCgpa")));
+                drive.setEligibleBranches(request.getParameter("eligibleBranches"));
+                drive.setLastDate(Date.valueOf(request.getParameter("lastDate")));
+                drive.setDriveDate(Date.valueOf(request.getParameter("driveDate")));
+                drive.setSalaryPackage(request.getParameter("salaryPackage"));
+                drive.setLocation(request.getParameter("location"));
+
+                JobDriveDAO dao = new JobDriveDAO();
+                if (dao.addJobDrive(drive)) {
+                    session.setAttribute("msg", "Job Drive Posted Successfully");
+                } else {
+                    session.setAttribute("error", "Failed to Post Job Drive");
+                }
+                response.sendRedirect(request.getContextPath() + "/company/manage_drives.jsp");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            session.setAttribute("error", "An error occurred");
+            response.sendRedirect(request.getContextPath() + "/company/post_job.jsp");
+        }
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String action = request.getParameter("action");
+        HttpSession session = request.getSession();
+        Company company = (Company) session.getAttribute("userObj");
+
+        if (company == null || !"company".equals(session.getAttribute("role"))) {
+            response.sendRedirect(request.getContextPath() + "/index.jsp");
+            return;
+        }
+
+        try {
+            if ("updateStatus".equals(action)) {
+                int applicationId = Integer.parseInt(request.getParameter("appId"));
+                String status = request.getParameter("status"); // SHORTLISTED, REJECTED, SELECTED
+
+                ApplicationDAO dao = new ApplicationDAO();
+                if (dao.updateStatus(applicationId, status)) {
+                    session.setAttribute("msg", "Status Updated to " + status);
+                } else {
+                    session.setAttribute("error", "Failed to Update Status");
+                }
+                response.sendRedirect(request.getContextPath() + "/company/applications.jsp");
+            } else if ("deleteDrive".equals(action)) {
+                int driveId = Integer.parseInt(request.getParameter("driveId"));
+                JobDriveDAO dao = new JobDriveDAO();
+                if (dao.deleteDrive(driveId)) {
+                    session.setAttribute("msg", "Drive Deleted Successfully");
+                } else {
+                    session.setAttribute("error", "Failed to Delete Drive");
+                }
+                response.sendRedirect(request.getContextPath() + "/company/manage_drives.jsp");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            session.setAttribute("error", "An error occurred");
+            response.sendRedirect(request.getContextPath() + "/company/dashboard.jsp");
+        }
+    }
+}
